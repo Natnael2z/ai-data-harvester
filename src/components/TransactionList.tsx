@@ -1,6 +1,9 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, AlertCircle, Info } from "lucide-react";
+import { AlertTriangle, AlertCircle, Info, MessageSquare } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Transaction {
   id: string;
@@ -8,6 +11,8 @@ interface Transaction {
   type: string;
   status: "success" | "error" | "pending";
   message: string;
+  comment?: string;
+  resolved?: boolean;
 }
 
 interface TransactionListProps {
@@ -36,7 +41,23 @@ const getPriorityInfo = (tx: Transaction) => {
   };
 };
 
-export function TransactionList({ transactions }: TransactionListProps) {
+export function TransactionList({ transactions: initialTransactions }: TransactionListProps) {
+  const [transactions, setTransactions] = useState(initialTransactions);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState("");
+
+  const handleAddComment = (id: string) => {
+    setTransactions(prev =>
+      prev.map(tx =>
+        tx.id === id
+          ? { ...tx, comment: commentText, resolved: true }
+          : tx
+      )
+    );
+    setEditingId(null);
+    setCommentText("");
+  };
+
   return (
     <div className="rounded-md border">
       <Table>
@@ -48,13 +69,16 @@ export function TransactionList({ transactions }: TransactionListProps) {
             <TableHead>Type</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Message</TableHead>
+            <TableHead>Comments</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {transactions.map((tx) => {
             const { icon, label } = getPriorityInfo(tx);
+            const isEditing = editingId === tx.id;
+
             return (
-              <TableRow key={tx.id}>
+              <TableRow key={tx.id} className={tx.resolved ? "bg-muted/50" : ""}>
                 <TableCell>
                   <div className="flex items-center gap-2" title={label}>
                     {icon}
@@ -77,6 +101,59 @@ export function TransactionList({ transactions }: TransactionListProps) {
                   </Badge>
                 </TableCell>
                 <TableCell className="max-w-md truncate">{tx.message}</TableCell>
+                <TableCell>
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <Textarea
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        placeholder="Add your comment..."
+                        className="min-h-[80px]"
+                      />
+                      <div className="space-x-2">
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleAddComment(tx.id)}
+                        >
+                          Save
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => {
+                            setEditingId(null);
+                            setCommentText("");
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {tx.comment ? (
+                        <>
+                          <p className="text-sm text-muted-foreground">{tx.comment}</p>
+                          <Badge variant="outline" className="text-xs">
+                            Resolved
+                          </Badge>
+                        </>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingId(tx.id);
+                            setCommentText("");
+                          }}
+                        >
+                          <MessageSquare className="h-4 w-4 mr-2" />
+                          Add Comment
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </TableCell>
               </TableRow>
             );
           })}
